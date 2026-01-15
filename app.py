@@ -71,6 +71,22 @@ def get_ad(ad_id):
         'owner_id': ad.owner_id
     })
 
+@app.route('/ads/<int:ad_id>', methods=['PUT'])
+@jwt_required()
+def update_ad(ad_id):
+    ad = Ad.query.get_or_404(ad_id)
+    user_id = get_jwt_identity()
+
+    if ad.owner_id != user_id:
+        return jsonify({"message": "You are not authorized to update this ad"}), 403
+
+    data = request.get_json()
+    ad.title = data.get('title', ad.title)
+    ad.description = data.get('description', ad.description)
+
+    db.session.commit()
+
+    return jsonify({"message": "Ad updated successfully!"}), 200
 
 @app.route('/ads/<int:ad_id>', methods=['DELETE'])
 @jwt_required()
