@@ -1,25 +1,46 @@
-import datetime
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import String, Integer, Text, DateTime, ForeignKey
+from datetime import datetime
+from typing import List
 
-from flask_sqlalchemy import SQLAlchemy
+class Base(AsyncAttrs, DeclarativeBase):
+    pass
 
-db = SQLAlchemy()
+class User(Base):
+    __tablename__ = 'user'
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(60), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(60), nullable=False)
 
-    def __repr__(self):
-        return f"User('{self.id}', '{self.email}')"
-
-class Ad(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    owner = db.relationship('User', backref=db.backref('ads', lazy=True))
+    ads: Mapped[List["Ad"]] = relationship(back_populates="owner", lazy="selectin")
 
     def __repr__(self):
-        return f"Ad('{self.title}', '{self.owner_id}')"
+        return f"User(id={self.id}, email='{self.email}')"
+
+    def to_dict(self):
+        return {'id': self.id, 'email': self.email}
+
+class Ad(Base):
+    __tablename__ = 'ad'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    owner_id: Mapped[int] = mapped_column(Integer, ForeignKey('user.id'), nullable=False)
+
+    owner: Mapped["User"] = relationship(back_populates="ads", lazy="selectin")
+
+    def __repr__(self):
+        return f"Ad(id={self.id}, title='{self.title}', owner_id={self.owner_id})"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'owner_id': self.owner_id
+        }
